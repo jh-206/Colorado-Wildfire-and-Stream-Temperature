@@ -1,4 +1,5 @@
-## Get USGS Stream Info
+## 1. Get USGS Stream Info
+## NOTE: process may take several hours
 
 # Setup -------------------------------------------------------------------
 
@@ -47,13 +48,5 @@
   
   readr::write_csv(waterData, file.path(datapath, "USGS CO Temp Data.csv"))
   readr::write_csv(siteData, file.path(datapath, "USGS CO Phys Sites.csv"))
-  
-  
-  
-  
-  
-  
-  
-  
   
   

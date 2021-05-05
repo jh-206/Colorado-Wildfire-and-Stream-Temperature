@@ -1,4 +1,4 @@
-## Get Climate Data
+## 2. Get PRISM Climate Data
 
 # Setup -------------------------------------------------------------------
 
@@ -20,8 +20,6 @@
                           coords = c("dec_long_va", "dec_lat_va"),
                           crs = 4326
   )
-  
-  
 
 # Get Data ----------------------------------------------------------------
   
@@ -41,18 +39,10 @@
     by = "date"
   )
   
-
 # Write out ---------------------------------------------------------------
 
   readr::write_csv(siteClimate, file.path(datapath, "PRISM Climate Data.csv"))
-  
-  
   raster::writeRaster(climateData$prcp, file.path(datapath, "Spatial Data/CO Precip.grd"), overwrite = T) 
   raster::writeRaster(climateData$tmax, file.path(datapath, "Spatial Data/CO Temp.grd"), overwrite = T) 
-  
-  
-  
-  
-  
   
   

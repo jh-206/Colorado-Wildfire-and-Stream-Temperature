@@ -1,4 +1,4 @@
-## Model
+## 5. data exploration, variable selection, collinearity checks
 
 # Setup -------------------------------------------------------------------
 
@@ -17,8 +17,6 @@
 # Create Regressors -------------------------------------------------------
 
   ## Log fire vars, shift 1 unit to account for log(0)
-  waterData$lacres_state <- log(waterData$acres_state + 1)
-  waterData$lnum_fires_state <- log(waterData$num_fires_state + 1)
   waterData$lacres_basin <- log(waterData$acres_basin + 1)
   waterData$lnum_fires_basin <- log(waterData$num_fires_basin + 1)
   
@@ -48,11 +46,11 @@
   #   theme_minimal()
   
   # Relationship of Variables with Basin
-  waterData %>% 
-    ggplot(aes(x = basin, y = Wtemp)) +
-    labs(title = "Water Temperature Distribution by River Basin", x = "River Basin", y = "Water Temperature (C)") +
-    geom_boxplot() +
-    theme_minimal()
+  # waterData %>% 
+  #   ggplot(aes(x = basin, y = Wtemp)) +
+  #   labs(title = "Water Temperature Distribution by River Basin", x = "River Basin", y = "Water Temperature (C)") +
+  #   geom_boxplot() +
+  #   theme_minimal()
   
   scales::hue_pal()(4)
   # Relationship with Water Temp
@@ -88,16 +86,16 @@
   
   
   ## Precip
-  waterData %>% 
-    ggplot(aes(x = prcp, y = Wtemp, color = season)) + 
-    labs(title = "Precipitation versus Water Temperature", x = "Log Daily Precipitation (mm)", y = "Water Temp (C)") +
-    geom_point(size = 1.5) + 
-    theme_minimal()
-  waterData %>% 
-    ggplot(aes(x = lprcp, y = Wtemp, color = season)) + 
-    labs(title = "Log Precipitation versus Water Temperature", x = "Log Daily Precipitation (mm)", y = "Water Temp (C)") +
-    geom_point(size = 1.5) + 
-    theme_minimal()
+  # waterData %>% 
+  #   ggplot(aes(x = prcp, y = Wtemp, color = season)) + 
+  #   labs(title = "Precipitation versus Water Temperature", x = "Log Daily Precipitation (mm)", y = "Water Temp (C)") +
+  #   geom_point(size = 1.5) + 
+  #   theme_minimal()
+  # waterData %>% 
+  #   ggplot(aes(x = lprcp, y = Wtemp, color = season)) + 
+  #   labs(title = "Log Precipitation versus Water Temperature", x = "Log Daily Precipitation (mm)", y = "Water Temp (C)") +
+  #   geom_point(size = 1.5) + 
+  #   theme_minimal()
   
   ## Drainage Area
   # waterData %>% 
@@ -112,21 +110,21 @@
   # Relationship w Fire Data
   
   ## Number of Fires
-  waterData %>% 
-    ggplot(aes(x = acres_basin, y = Wtemp, color = season)) +
-    geom_point() +
-    scale_colour_manual(values = c("#F8766D", "#b3be3c", "#39B600", "#00BFC4")) +
-    labs(x = "Number of Wildfires", y = "Water Temp (C)", 
-         title = "Number of Wildfires in River Basin vs Seasonal Water Temperature") +
-    theme_minimal()
-  ## Acres Burned
-  waterData %>% 
-    ggplot(aes(x = lacres_basin, y = Wtemp, color = season)) +
-    geom_point() +
-    scale_colour_manual(values = c("#F8766D", "#b3be3c", "#39B600", "#00BFC4")) +
-    labs(x = "Log Acres Burned", y = "Water Temp (C)", 
-         title = "Log Total Acres Burned in River Basin vs Seasonal Water Temperature") +
-    theme_minimal()
+  # waterData %>% 
+  #   ggplot(aes(x = acres_basin, y = Wtemp, color = season)) +
+  #   geom_point() +
+  #   scale_colour_manual(values = c("#F8766D", "#b3be3c", "#39B600", "#00BFC4")) +
+  #   labs(x = "Number of Wildfires", y = "Water Temp (C)", 
+  #        title = "Number of Wildfires in River Basin vs Seasonal Water Temperature") +
+  #   theme_minimal()
+  # ## Acres Burned
+  # waterData %>% 
+  #   ggplot(aes(x = lacres_basin, y = Wtemp, color = season)) +
+  #   geom_point() +
+  #   scale_colour_manual(values = c("#F8766D", "#b3be3c", "#39B600", "#00BFC4")) +
+  #   labs(x = "Log Acres Burned", y = "Water Temp (C)", 
+  #        title = "Log Total Acres Burned in River Basin vs Seasonal Water Temperature") +
+  #   theme_minimal()
 
   
 

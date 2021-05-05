@@ -1,4 +1,4 @@
-## Model
+## 6. Model Diagnostics
 
 # Setup -------------------------------------------------------------------
 
@@ -17,7 +17,7 @@
   
 # Create Regressors -------------------------------------------------------
 
-  ## Log and sqrt transformations need to shift to account for negative values
+  ## Log transformations need to shift to account for negative values
   
   ## Log Flow
   waterData$lflow <- log(waterData$flow)
