@@ -1,0 +1,60 @@
+---
+title: "Presentation Figures"
+author: "Jonathon Hirschi"
+date: "4/27/2021"
+output:
+  html_document:
+    df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(dplyr); require(knitr); require(readr); require(pander)
+```
+
+```{r, echo=F}
+datapath <- "D:/Projects/D2P 2021/Data"
+
+waterData <- readr::read_csv(file.path(datapath, "Modeling Dataset.csv"))
+
+df <- waterData %>% dplyr::select(-num_fires_state, -acres_state)
+
+df <- df %>% dplyr::rename(
+  `Water Temp` = Wtemp,
+  `Site Number` = site_no,
+  `Latitude` = lat,
+  `Longitude` = long,
+  `Year` = yr,
+  `Season` = season,
+  `Discharge` = flow,
+  `Drainage Area` = drain,
+  `Precip.` = prcp,
+  `Air Temp` = tmax,
+  `Altitude` = alt,
+  `River Basin` = basin,
+  `Number of Wildfires in Basin` = num_fires_basin,
+  `Acres Burned in Basin` = acres_basin
+)
+
+num_fun <- function(x) {
+  scales::comma(x, accuracy = 0.01)
+}
+
+df <- df %>% 
+  mutate_at(.vars = c("Latitude", "Longitude", "Altitude", "Discharge", "Acres Burned in Basin"), num_fun) %>%
+  mutate(`Drainage Area` = scales::comma(`Drainage Area`))
+
+
+pander::pander(tail(df), split.table = Inf)
+
+# basins <- sf::st_read("D:/Projects/D2P 2021/Data/Raw Data/DIV3CO/DIV3CO.shp")
+
+basins <- df %>% group_by(`River Basin`) %>% summarise("Number of Sites" = n_distinct(`Site Number`))
+
+basins <- basins %>% bind_rows(data.frame("River Basin" = "Rio Grand", "Number of Sites" = 0, check.names = F))
+
+pander::pander(basins)
+```
+

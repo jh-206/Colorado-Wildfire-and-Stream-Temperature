@@ -1,0 +1,173 @@
+---
+title: "Hw09 - Influential Structure"
+subtitle: Math 5387 Applied Regression Analysis
+author: "Jonathon Hirschi"
+output:
+  pdf_document: default
+  html_notebook: default
+  word_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(car); require(faraway); require(ggplot2); require(gridExtra)
+```
+
+```{r data}
+data("teengamb", package = "faraway")
+head(teengamb)
+
+# Convert sex to factor and add labels
+teengamb$sex <- as.factor(teengamb$sex)
+levels(teengamb$sex) <- c("male", "female")
+
+# Model with all predictors
+lm1 <- lm(gamble ~ ., data = teengamb)
+
+faraway::sumary(lm1)
+```
+
+
+## Problem 1
+
+```{r leverage}
+# Halfnorm plot
+faraway::halfnorm(hatvalues(lm1), ylab = "leverage")
+
+# Influence index plot
+infIndexPlot(lm1, vars = "hat")
+```
+
+The diagonal elements of the hat matrix, $H = X(X^TX)^{-1}X^T$, can be used to identify leverage points. The two plots above both identify observations 35 and 42 as potential leverage points.
+
+## Problem 2
+
+```{r outliers}
+
+## Influence Index Plot
+infIndexPlot(lm1, vars = c("Studentized", 
+"Bonf"))
+
+## Studentized Residual Check
+outlierTest(lm1, cutoff=Inf, n.max = 2)
+
+```
+
+In the top half of the plot above, the studentized residuals identify observations 24 and 39 as potential outliers. Using a Bonferroni correction, however, the observation at 24 would be considered an outlier, while observation 39 would not. This can be seen in the lower half of the plot, or the same values are computed with the `outlierTest` function.
+
+## Problem 3
+
+```{r influence}
+cook <- cooks.distance(lm1) 
+
+halfnorm(cook, n = 2, 
+ ylab = "Cook's distances") 
+infIndexPlot(lm1, var = "Cook", id = list(n 
+= 3)) 
+
+# Betas Plot
+car::dfbetasPlots(lm1)
+
+```
+
+
+From the Cook's Distance Half-Norm and Index plots, we see observation 24 has a very large Cook's distance. Additionally, observation 39 again might be of interest. Next, in the DFBETA plots, we see in each plot that observation 24 had a substantial impact on the parameter estimates compared to the other observations, so it should probably be considered an influential value. Additionally, in the DFBETA plots observation 39 seems to only have an outsize impact on the estimate for the parameter value associated with income. However, it would take domain-specific knowledge to understand if these shifts in parameter estimates are of scientific interest.
+
+## Problem 4
+
+```{r resplot}
+car::residualPlots(lm1)
+
+plot(lm1, which = 1)
+```
+
+In the residual plots, there is some slight evidence of nonlinearity in the plots associated with the quantitative parameter estimates, though the lines are relatively straight. However, in the final plot of fitted values versus pearson residuals, we see reasonably strong evidence of nonlinear effects and a slight "fan-shaped" pattern to the residuals indicating that the assumptions of constant variance for the errors might be violated. The Residuals vs Fitted plot after that shows the same pattern of non-constant variance. The assumption of errors having a mean of zero is hard to tell but appears to be sound. The residual plots together suggest that it might be worthwhile to transform the response variable.
+
+## Problem 5
+
+```{r marg}
+marginalModelPlots(lm1)
+```
+
+From the marginal models plots, we see a substantial departure from the data and model lines for the parameters associated with socioeconomic status and verbal score. We might need to consider transformations for those variables or for the response or both.
+
+## Problem 6
+
+```{r avplots}
+avPlots(lm1)
+```
+
+In the added variable plots, the least squares lines follow the data reasonably well and there is no clear evidence of major nonlinearities that are not being accounted for. Observation 24 again departs widely from the least squares lines. Observation 24 wasn't identified as a leverage point in Problem 1, and we see in these plots that although it is an outlier, it is not unusual in the predictor space and therefore is not substantially influential. Observation 24 was identified as potentially influential in Problem 3, but the added variable plots cast doubt on this. Furthermore, observations 24 and 39 might have the effect of "canceling" each other out, as observation 39 departs from the least squares lines in the opposite direction.
+
+## Problem 7
+
+```{r cr}
+car::crPlots(lm1)
+```
+
+In the component plus residual plots, there is slight departure between the smoothed and least squares lines with a downward bulging pattern that suggests a square root or log transformation on the response variable might be worthwhile. This is consistent with the examination of the residual plots in Problem 4.
+
+## Problem 8
+
+```{r sexres}
+df <- data.frame(
+  res = residuals(lm1),
+  fit = fitted.values(lm1),
+  sex = teengamb$sex
+)
+
+require(ggplot2)
+
+ggplot(data = df, aes(x = fit, y = res, color = sex)) +
+  geom_point() +
+  labs(x = "Fitted Values", y = "Residuals", title = "Fitted Values vs Residuals") +
+  theme_minimal()
+```
+
+In the above plot, the residuals tend to be larger in absolute terms for males than for females.
+
+## Problem 9
+
+The problems seen in the previous plot could be associated with sex interacting with one or more of the other variables.
+
+## Problem 10
+
+I will consider interacting the sex variable with one of the other predictors.
+
+```{r}
+p1 <- ggplot(teengamb, aes(x = sex, y = status)) + geom_boxplot() + theme_minimal()
+p2 <- ggplot(teengamb, aes(x = sex, y = income)) + geom_boxplot() + theme_minimal()
+p3 <- ggplot(teengamb, aes(x = sex, y = verbal)) + geom_boxplot() + theme_minimal()
+grid.arrange(p1, p2, p3, nrow = 1)
+```
+
+In the above plots, there is the largest difference between males and females for socioeconomic status. I will consider this interaction effect in a new model.
+
+```{r lm2}
+lm2 <- lm(gamble ~ sex*status + income + verbal, data = teengamb)
+
+# Residual plot by sex
+df2 <- data.frame(
+  res = residuals(lm2),
+  fit = fitted.values(lm2),
+  sex = teengamb$sex
+)
+
+require(ggplot2)
+
+ggplot(data = df2, aes(x = fit, y = res, color = sex)) +
+  geom_point() +
+  labs(x = "Fitted Values", y = "Residuals", title = "Fitted Values vs Residuals - Interaction Model") +
+  theme_minimal()
+
+residualPlots(lm2)
+```
+
+
+
+
+
+
+

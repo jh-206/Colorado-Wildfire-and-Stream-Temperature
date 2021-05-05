@@ -1,0 +1,10 @@
+df <- climateData
+df$season <- getSeason(df$date)
+
+s <- df[df$season == "Summer",]
+w <- df[df$season == "Winter",]
+
+names(s)
+mean(colMeans(s[,-which(names(s) %in% c("date", "season"))]))
+
+mean(colMeans(w[,-which(names(w) %in% c("date", "season"))]))

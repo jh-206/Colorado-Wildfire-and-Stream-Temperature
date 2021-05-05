@@ -1,0 +1,221 @@
+---
+title: "Hw08 - Variable Selection"
+subtitle: Math 5387 Applied Regression Analysis
+author: "Jonathon Hirschi"
+output:
+  pdf_document: default
+  html_notebook: default
+  word_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(leaps); require(faraway)
+```
+
+## Problem 1
+
+```{r data}
+data(prostate, package = "faraway")
+
+# Check for missing values
+sapply(prostate, function(x) mean(is.na(x)))
+
+# Fit models
+mods <- regsubsets(lpsa ~ ., data = prostate, method = "exhaustive")
+modsummary <- summary(mods)
+```
+
+### a)
+
+For the backward elimination procedure, I will use $\alpha = 0.05$ as the selection criterion.
+
+```{r backward}
+# Backward Elimination Procedure, suppressing sumary output for concise document
+
+lm1 <- lm(lpsa ~ ., data = prostate)
+# sumary(lm1)
+
+# Remove gleason, refit
+lm1 <- lm(lpsa ~ lcavol + lweight + age + lbph + svi + lcp + pgg45, data = prostate)
+# sumary(lm1)
+
+# Remove lcp
+lm1 <- lm(lpsa ~ lcavol + lweight + age + lbph + svi + pgg45, data = prostate)
+# sumary(lm1)
+
+# Remove pgg45
+lm1 <- lm(lpsa ~ lcavol + lweight + age + lbph + svi, data = prostate)
+# sumary(lm1)
+
+# Remove age
+lm1 <- lm(lpsa ~ lcavol + lweight + lbph + svi, data = prostate)
+# sumary(lm1)
+
+# Remove lbph
+lm1 <- lm(lpsa ~ lcavol + lweight + svi, data = prostate)
+# sumary(lm1)
+
+# All coefficients significant at alpha = .05 level
+backVars <- names(coef(lm1))[-1]
+(backVars <- paste0(backVars, collapse = ", "))
+```
+
+### b)
+
+```{r aic}
+n <- nrow(prostate)
+p <- 2:(mods$np)
+# Manually Calculate AIC
+aics <- modsummary$bic + (2 - log(n))*(p)
+
+
+# NP with lowest AIC
+pbest <- which.min(aics)
+
+plot(aics, xlab = "Number of Predictors", ylab = "AIC", type = "b")
+points(pbest, aics[pbest], col = "red", pch = 16)
+
+# Variables retained
+vars <- modsummary$which[pbest, ]
+aicVars <- names(modsummary$which[pbest, vars])[-1]
+(aicVars <- paste0(aicVars, collapse = ", "))
+```
+
+The model with 5 predictors (not including the intercept) has the lowest AIC value.
+
+### c)
+
+```{r adjr2}
+
+# Model of size 8 has highest adjusted R2
+pbest <- which.max(modsummary$"adjr2")
+coef(mods, id = pbest)
+
+# Plot adjusted R2
+
+plot(modsummary$adjr2, xlab = "Number of Predictors", ylab = "Adjusted R^2", type = "b")
+points(pbest, max(modsummary$"adjr2"), col = "red", pch = 16)
+
+# Variables retained
+vars <- modsummary$which[pbest, ]
+adjRVars <- names(modsummary$which[pbest, vars])[-1]
+(adjRVars <- paste0(adjRVars, collapse = ", "))
+```
+
+The model with 7 predictors (not including the intercept) has the highest adjusted $R^2$ value.
+
+### d)
+
+```{r cp}
+
+
+# Plot Mallow's CP
+
+plot(2:mods$np, modsummary$cp, xlab = "Number of Parameters", ylab = "Mallow's CP", type = "b", ylim = c(0, 25))
+abline(a = 0, b = 1)
+
+
+# Minimum absolute difference CP Values vs np
+vars <- modsummary$which[5,]
+cpVars <- names(modsummary$which[5,vars])[-1]
+(cpVars <- paste0(cpVars, collapse = ", "))
+```
+
+In the above plot, the model with 5 predictor variables, or the model with 6 regression parameters including the intercept, has a Mallow's CP value closest to it's number of predictors, excluding the full model which always has CP equal to the number of predictors.
+
+
+```{r table1}
+
+table1 <- data.frame(
+  approach = c("Backward Elimination", "AIC", "Adjusted R^2", "Mallows CP"),
+  `variables retained` = c(backVars, aicVars, adjRVars, cpVars),
+  check.names = F, row.names = NULL
+)
+
+knitr::kable(table1)
+```
+
+## Problem 2
+
+```{r trees_mod}
+# Load Data
+data(trees)
+# Examine for cleaning
+head(trees)
+sapply(trees, function(x) mean(is.na(x)))
+
+fit1 <- lm(log(Volume) ~ Height*Girth + I(Height^2) + I(Girth^2), data = trees)
+fit2 <- lm(log(Volume) ~ Height*Girth + I(Girth^2), data = trees)
+fit3 <- lm(log(Volume) ~ Height*Girth + I(Height^2), data = trees)
+fit4 <- lm(log(Volume) ~ Height*Girth, data = trees)
+fit5 <- lm(log(Volume) ~ Height+Girth + I(Height^2) + I(Girth^2), data = trees)
+fit6 <- lm(log(Volume) ~ Height+Girth + I(Girth^2), data = trees)
+fit7 <- lm(log(Volume) ~ Height+Girth + I(Height^2), data = trees)
+fit8 <- lm(log(Volume) ~ Height+Girth, data = trees)
+fit9 <- lm(log(Volume) ~ Height, data = trees)
+fit10 <- lm(log(Volume) ~ Girth, data = trees)
+
+
+which.min(c(AIC(fit1), AIC(fit2), AIC(fit3), AIC(fit4), AIC(fit5), AIC(fit6), AIC(fit7), AIC(fit8), AIC(fit9), AIC(fit10)))
+
+which.min(c(BIC(fit1), BIC(fit2), BIC(fit3), BIC(fit4), BIC(fit5), BIC(fit6), BIC(fit7), BIC(fit8), BIC(fit9), BIC(fit10)))
+
+# Best Model
+sumary(fit6)
+```
+
+The full model specified in the problem is `fit1` above. I considered all the combinations of those regressors, with the condition that lower order terms must be included if higher order terms are in the model. I then compared the AIC and BIC for all of those 10 models, and the best model for both criteria was the model with Height, Girth, and the square of Girth as regressors.
+
+## Grad Student Problem
+
+### a)
+
+For a standard linear regression model, $y_i = X_i^T \pmb{\beta} + \epsilon_i$, the errors are independent and identically distributed: $\epsilon_i \sim N(0, \sigma^2)$. Therefore, each $y_i$ is independent and normally distributed:
+
+$$y_i \sim N(X_i^T \pmb{\beta}, \sigma^2)$$
+
+$$E[y_i] = X_i^T\pmb{\beta}, \qquad Var[y_i] = \sigma^2$$
+
+The likelihood function for a standard linear regression model with known $\pmb{\beta}$ is:
+
+$$L(\mathcal{M}) = L(\sigma^2 | \pmb{x}) = \prod_{i = 1}^{n}\frac{1}{\sqrt{2\pi\sigma^2}}\exp \left[ -\frac{1}{2\sigma^2} (y_i - x_i^T\pmb{\beta})^2 \right] = \prod_{i = 1}^{n}\frac{1}{\sqrt{2\pi\sigma^2}}\exp \left[ -\frac{1}{2\sigma^2} (y_i - \hat{y}_i)^2 \right]$$
+$$= \frac{1}{(2\pi\sigma^2)^{n/2}} \exp \left[ -\frac{1}{2\sigma^2} \sum_{i = 1}^{n}(y_i - \hat{y_i})^2 \right]$$
+
+$$= \frac{1}{(2\pi\sigma^2)^{n/2}} \exp \left[ -\frac{1}{2\sigma^2} RSS_{\mathcal{M}} \right]$$
+The log-likelihood function is:
+
+$$\ell(\mathcal{M}) = \ell(\sigma^2|\pmb{x}) = \left(-\frac{n}{2}\right)\ln(2\pi\sigma^2) - \frac{1}{2\sigma^2}RSS_{\mathcal{M}}$$
+
+$$= -\frac{n}{2}\ln(2\pi) -\frac{n}{2}(\sigma^2) - \frac{1}{2\sigma^2}RSS_{\mathcal{M}}$$
+
+### b)
+
+$$\frac{\partial}{\partial \sigma^2} \ell(\sigma^2|\pmb{x}) = -\frac{n}{2\sigma^2} + \frac{RSS_{\mathcal{M}}}{2\sigma^4}$$
+
+We set the partial derivative equal to zero and solve to find the MLE estimate:
+
+$$0 = -\frac{n}{2\hat{\sigma}^2} + \frac{RSS_{\mathcal{M}}}{2\hat{\sigma}^4}$$
+
+$$\frac{n}{2\hat{\sigma}^2} = \frac{RSS_{\mathcal{M}}}{2\hat{\sigma}^4}$$
+
+$$\hat{\sigma}^2_{mle} = \frac{RSS_{\mathcal{M}}}{n}$$
+
+
+### c)
+
+Using the MLE estimate for $\sigma^2$:
+
+$$-2\ell(\mathcal{M}) = -2\left[ -\frac{n}{2}\ln(2\pi) -\frac{n}{2}(\hat{\sigma}^2) - \frac{1}{2\hat{\sigma}^2}RSS_{\mathcal{M}} \right]$$
+
+$$= n\ln(2\pi) + n\ln\left(\frac{RSS_{\mathcal{M}}}{n} \right) + \frac{n}{RSS_{\mathcal{M}}} RSS_{\mathcal{M}}$$
+
+$$-2\ell(\mathcal{M}) = n\ln\left(\frac{RSS_{\mathcal{M}}}{n} \right) + n(1+\ln(2\pi)) \qquad \square$$
+
+
+
+
+
+

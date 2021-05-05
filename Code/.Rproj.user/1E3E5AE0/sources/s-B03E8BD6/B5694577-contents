@@ -1,0 +1,226 @@
+---
+title: "Project Proposal - Data 2 Policy 2021"
+author: "Jonathon Hirschi"
+date: "3/30/2021"
+output:
+  pdf_document: default
+  html_notebook: default
+  word_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, message=F, warning=F, echo=F}
+require(ggplot2); require(dplyr); require(gridExtra); require(kableExtra)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+options(scipen = 999)
+```
+
+
+1.	What are the names of the members of your group?
+
+Jonathon Hirschi.
+
+2.	What data set do you want to analyze?  Where did you obtain the data?  What kinds of information is available?  How many variables does the data have?  How many observations?
+
+I have collected data from the following sources:
+
+* Wildfire data is from the National Interagency Fire Center
+  * The dataset is called "Historic Perimeters Combined 2000-2018". It contains locations, dates, and sizes for wildfires in American from 1984 - 2018.
+  * I filtered the data to 953 fires in Colorado.
+  * Source: https://data-nifc.opendata.arcgis.com/datasets/historic-perimeters-combined-2000-2018?geometry=-96.599%2C-9.831%2C-147.576%2C74.202
+
+* Streamflow data is obtained from the USGS R package called `dataRetrieval`. This package collects data from USGS monitoring sites located at streams throughout the country.
+  * USGS organizes their data with so-called "parameter codes". I used the codes for water temperature in degrees Celsius and discharge, in cubic feet per second.
+    * Parameter Codes Source: https://help.waterdata.usgs.gov/parameter_cd?group_cd=PHY
+  * I read the daily mean value for temperature and discharge for every site in Colorado for the time period of 2000-01-01 to 2018-12-31 (the time period for the wildfire data). Then, I filtered to sites that had complete records for at least one year of observations.
+  * In total, I collected 103,233 records from 34 unique monitoring sites.
+  * Additionally, I collected information about the sites themselves, including location in latitude and longitude, elevation above sea level.
+  * Package Source: https://cran.r-project.org/web/packages/dataRetrieval/vignettes/dataRetrieval.html
+
+
+* Climate data is from the R package `climateR`
+  * I utilized the PRISM dataset to read in raster files for daily precipitation in millimeters and daily maximum temperature in degrees Celcius for Colorado for the time period of 2000-01-01 to 2018-12-31.
+  * I extracted the maximum temperature and daily precipitation at the location of the USGS monitoring sites.
+  * In total, I collected 250,716 observations of temperature and precipitation for 34 unique USGS sites.
+  * This R Package also allows for reading climate projections under various climate change scenarios.
+  * Package Source: https://github.com/mikejohnson51/climateR
+
+3.	What statistical research question(s) do you hope to answer?  What model(s) do you initially plan to fit to answer the research question(s)?  What will your response variable be?
+
+I want to analyze the degree to which wildfires are associated with changes in stream temperature in Colorado. Stream temperature is an important environmental property, and ecological problems arise when streams get either too cold or too hot. Wildfires cause a number of environmental and economic problems, and I want to investigate whether these wildfires are contributing to warming streams and thus threatening vital habitat. I plan to average observations over year and season and model the average seasonal stream temperature by year as my response variable. The variables I will consider for a regression model are the following (all averaged over season):
+
+* Year: (2000-2018)
+  * This variable could account for any long term annual trend in stream temperature. 
+* Season: (Summer, Fall, Winter, or Spring)
+  * Water temperatures are higher in the summer and lower in the winter.
+* Discharge: (cubic feet per second)
+  * A larger volume of water takes more energy to heat up, so there is reason to suspect that higher discharge sites would have lower temperatures.
+* USGS Site Altitude: (feet)
+  * We should expect higher elevation stream sites to have lower temperatures.
+* USGS Site Latitude and Longitude:
+  * Spatial coordinates could account for regional variability in stream temperature.
+* USGS Site Drainage Area:
+  * This variable measures the land area surrounding a stream that feeds it water through precipitation draining into the stream.
+  * Background Source: https://waterdata.usgs.gov/wa/nwis/current?type=basinda#:~:text=The%20term%20%22drainage%20area%22%20is,a%20map%2C%20often%20a%20ridge.
+* Daily Maximum Air Temperature: (degrees Celsius)
+  * Air temperature is one of the main determining factors for stream temperature.
+* Daily Precipitation: (millimeters)
+  * Precipitation can have a warming effect on streams.
+  * Background Source: https://instaar.colorado.edu/research/publications/theses-dissertations/increased-stream-temperature-in-response-to-extreme-precipitation-events/
+* Number of Wildfires:
+  * Number of wildfires per season each year.
+* Total Acreage of Wildfires:
+  * Wildfires can not only directly warm the surrounding area, they can destroy vegetation that plays an important role in heat regulation.
+
+These variables could have nonlinear relationships with stream temperature, which I will investigate with data visualizations. I will additionally consider grouping wildfire acreage by major River Basin. A portion of the filtered and joined data can be seen below:
+
+```{r dat}
+datapath <- "D:/Projects/D2P 2021/Data"
+modelData <- readr::read_csv(file.path(datapath, "Modeling Dataset.csv"))
+knitr::kable(
+  head(modelData %>% select(-num_fires, -lacres) %>% mutate_at(.vars = c("Wtemp", "Flow", "prcp", "tmax", "alt_va", "acres"), round))
+  ) %>% 
+  kable_styling(font_size = 7)
+```
+
+
+4.	What is the title of your project (this should be fairly short and relate to your research question(s)?
+
+*The Impact of Increased Wildfire Activity on Stream Temperatures in Colorado*
+
+5.	Provide a numerical summary and density plot of your response variable.
+
+Below I present the summary and density for water temperature in two ways: for all observations and then for seasonal averages by year.
+
+**Overall Data:**
+
+```{r overall}
+
+waterData <- readr::read_csv(file.path(datapath, "USGS CO Temp Data.csv"))
+
+getSeason <- function(DATES) {
+    WS <- as.Date("2012-12-21", format = "%Y-%m-%d") # Winter Solstice
+    SE <- as.Date("2012-3-19",  format = "%Y-%m-%d") # Spring Equinox
+    SS <- as.Date("2012-6-20",  format = "%Y-%m-%d") # Summer Solstice
+    FE <- as.Date("2012-9-22",  format = "%Y-%m-%d") # Fall Equinox
+    
+    # Convert dates from any year to 2012 dates
+    d <- as.Date(strftime(DATES, format="2012-%m-%d"))
+    
+    ifelse (d >= WS | d < SE, "Winter",
+            ifelse (d >= SE & d < SS, "Spring",
+                    ifelse (d >= SS & d < FE, "Summer", "Fall")))
+  }
+
+# Filter to Relevant Time Period
+waterData <- waterData[which(waterData$Date < as.Date("2019-01-01")),]
+# Add year and season, filter to complete years of observations
+waterData$season <- getSeason(waterData$Date)
+waterData$yr <- lubridate::year(waterData$Date)
+sts <- waterData %>% group_by(site_no) %>% summarise(nseas = n_distinct(season))
+sts <- sts[which(sts$nseas == 4),]
+waterData <- waterData[which(waterData$site_no %in% sts$site_no),]
+
+
+# Overall Water Temperature Summary
+summary(waterData$Wtemp)
+# Overall Water Temperature Density
+waterData %>% 
+  ggplot(aes(x = Wtemp)) + 
+  labs(title = "Colorado Stream Temperature Distribution (2000 - 2018)", x = "Water Temperature (C)") +
+  geom_density(color = "blue", fill = "lightblue", alpha = .4) + 
+  theme_minimal()
+
+
+```
+
+
+**Seasonally Averaged Data:**
+
+```{r seas}
+
+# Seasonal Average Water Temperature Summary
+summary(modelData$Wtemp)
+# Seasonal Average Water Temperature Density
+modelData %>% 
+  ggplot(aes(x = Wtemp)) + 
+  labs(title = "Colorado Average Water Temperature Seasonal Average Distribution (2000 - 2018)", x = "Water Temperature (C)") +
+  geom_density(color = "blue", fill = "lightblue", alpha = .4) + 
+  theme_minimal()
+```
+
+
+6. Division of labor: not applicable
+
+
+7.	Provide some numerical summaries and exploratory plots of your planned data.  You should consider many of the bivariate relationships.  Interpret the plots.
+
+
+
+![Average Temperate by USGS Site](images/tempMap.png)
+
+
+A map of the site locations with average annual water temperature is displayed below. The colder annual temperatures are closer to the mountains at higher elevations. I will have to investigate whether Latitude and Longitude has substantial collinearity with altitude, and I will consider utilizing just one of those geographic variables.
+
+```{r seasonplt}
+modelData %>% 
+  ggplot(aes(x = season, y = Wtemp)) + 
+  labs(title = "Water Temperature by Season", x = "Season", y = "Water Temperature (C)") +
+  geom_boxplot() + 
+  theme_minimal()
+```
+
+The average water temperature is unsurprisingly highest in the summer and lowest in the winter, and the spring and fall have similar average values. The summer and spring also have higher variability in temperature, since the boxes are taller for those seasons. Finally, the fall season appears to have more observations identified as outliers.
+
+
+
+```{r elev}
+modelData %>% 
+  group_by(site_no) %>% summarise(alt_va = unique(alt_va), meantemp = mean(Wtemp)) %>% 
+  ggplot(aes(x = alt_va, y = meantemp)) + 
+  labs(title = "Altitude vs Average Annual Temp", x = "Site Altitude (ft)", y = "Average Annual Water Temp (C)") +
+  scale_x_continuous(labels = scales::comma) +
+  geom_point(size = 2) + 
+  theme_minimal()
+```
+
+In the above scatterplot, I averaged the annual water temperature by USGS site. The full data has repeated measurements at each site. There is a strong negative linear relationship between site altitude and average annual water temperature. 
+
+
+```{r tmax}
+modelData %>% 
+  ggplot(aes(x = tmax, y = Wtemp)) + 
+  labs(title = "Air Temperature versus Water Temperature", x = "Maximum Daily Air Temperature (C)", y = "Water Temp (C)") +
+  geom_point(size = 1.5) + 
+  theme_minimal()
+```
+
+There is a strong positive relationship between maximum daily air temperature and water temperature. The relationship looks roughly linear, though for lower values of the plot the trend seems to level off. 
+
+```{r acres}
+modelData %>% 
+  ggplot(aes(x = acres)) + 
+  scale_x_continuous(label = scales::comma) +
+  labs(title = "Acres Burned per Season", x = "Acres") +
+  geom_density(color = "black", fill = "black", alpha = .4) +
+  theme_minimal()
+
+modelData %>% 
+  ggplot(aes(x = log(acres))) + 
+  scale_x_continuous(label = scales::comma) +
+  labs(title = "Log Acres Burned per Season", x = "Log Acres") +
+  geom_density(color = "black", fill = "black", alpha = .4) +
+  theme_minimal()
+
+
+modelData %>% 
+  ggplot(aes(x = log(acres), y = Wtemp)) + 
+  geom_point() +
+  labs(title = "Log Acres Burned versus Water Temp", x = "Log Acres", y = "Water Temp (C)") +
+  theme_minimal()
+```
+
+The natural log of total acres burned in a season displays a more symmetric distribution than the non-transformed values. Additionally, the scatterplot below displays a roughly linear relationship between water temperature and the log of acres burned. Note that there are vertically stacked points because there are multiple observations of water temperature in a given season with just one state-wide measure of total acres burned in wildfires. However, many of the values are zero (when there were no wildfires in a season), and taking the natural log of zero is undefined. I will have to either impute the zero values or consider another transformation.
+
+

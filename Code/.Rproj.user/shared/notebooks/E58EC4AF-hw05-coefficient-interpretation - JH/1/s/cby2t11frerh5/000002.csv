@@ -1,0 +1,4 @@
+"0","```r
+library(effects)
+data(UN11, package = \"alr4\")
+```"
